@@ -1,9 +1,15 @@
-import { AppState, Participant, SpinLogEntry, Prize } from './types';
-import { getRotationForPrize } from './game-logic';
+import { AppState, Participant, SpinLogEntry, Prize } from "./types";
+import { getRotationForPrize } from "./game-logic";
 
 // Wheel rendering
 export function renderWheel(state: AppState) {
   const canvas = document.getElementById("wheel-canvas") as HTMLCanvasElement;
+  const overlay = document.getElementById("wheel-overlay")!;
+  if (!hasPrizes(state)) {
+    overlay.style.display = "flex";
+  } else {
+    overlay.style.display = "none";
+  }
   const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const prizes = state.prizes.filter((p) => state.prizesState[p.id] > 0);
@@ -18,7 +24,9 @@ export function renderWheel(state: AppState) {
     ctx.moveTo(centerX, centerY);
     ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
     ctx.closePath();
-    ctx.fillStyle = ["#a5b4fc", "#facc15", "#fca5a5", "#6ee7b7", "#fdba74"][i % 5];
+    ctx.fillStyle = ["#a5b4fc", "#facc15", "#fca5a5", "#6ee7b7", "#fdba74"][
+      i % 5
+    ];
     ctx.fill();
     ctx.strokeStyle = "#fff";
     ctx.lineWidth = 3;
@@ -36,7 +44,7 @@ export function renderWheel(state: AppState) {
   });
   // Draw center circle
   ctx.beginPath();
-  ctx.arc(centerX, centerY, 40, 0, 2 * Math.PI);
+  ctx.arc(centerX, centerY, 32, 0, 2 * Math.PI);
   ctx.fillStyle = "#fff";
   ctx.fill();
   ctx.strokeStyle = "#6366f1";
@@ -44,7 +52,7 @@ export function renderWheel(state: AppState) {
   ctx.stroke();
   // Draw pointer
   ctx.beginPath();
-  ctx.moveTo(centerX, centerY - radius - 10);
+  ctx.moveTo(centerX, centerY - radius + 0);
   ctx.lineTo(centerX - 18, centerY - radius + 28);
   ctx.lineTo(centerX + 18, centerY - radius + 28);
   ctx.closePath();
@@ -69,7 +77,9 @@ export function drawWheelWithRotation(state: AppState, rot: number) {
     ctx.moveTo(centerX, centerY);
     ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
     ctx.closePath();
-    ctx.fillStyle = ["#a5b4fc", "#facc15", "#fca5a5", "#6ee7b7", "#fdba74"][i % 5];
+    ctx.fillStyle = ["#a5b4fc", "#facc15", "#fca5a5", "#6ee7b7", "#fdba74"][
+      i % 5
+    ];
     ctx.fill();
     ctx.strokeStyle = "#fff";
     ctx.lineWidth = 3;
@@ -87,7 +97,7 @@ export function drawWheelWithRotation(state: AppState, rot: number) {
   });
   // Draw center circle
   ctx.beginPath();
-  ctx.arc(centerX, centerY, 40, 0, 2 * Math.PI);
+  ctx.arc(centerX, centerY, 32, 0, 2 * Math.PI);
   ctx.fillStyle = "#fff";
   ctx.fill();
   ctx.strokeStyle = "#6366f1";
@@ -95,7 +105,7 @@ export function drawWheelWithRotation(state: AppState, rot: number) {
   ctx.stroke();
   // Draw pointer
   ctx.beginPath();
-  ctx.moveTo(centerX, centerY - radius - 10);
+  ctx.moveTo(centerX, centerY - radius + 0);
   ctx.lineTo(centerX - 18, centerY - radius + 28);
   ctx.lineTo(centerX + 18, centerY - radius + 28);
   ctx.closePath();
@@ -103,17 +113,29 @@ export function drawWheelWithRotation(state: AppState, rot: number) {
   ctx.fill();
 }
 
+// Helper to check if prizes remain
+function hasPrizes(state: AppState) {
+  return Object.values(state.prizesState).some((count) => count > 0);
+}
+
 // Render bowl (show count label)
 export function renderBowl(state: AppState, onDraw: (pid: string) => void) {
   const label = document.getElementById("bowl-count-label")!;
   label.textContent = `剩餘參與者:${state.bowl.length}`;
-  // Keep bowl clickable
   const bowlDiv = document.getElementById("bowl")!;
-  bowlDiv.onclick = () => {
-    if (state.bowl.length === 0) return;
-    const idx = Math.floor(Math.random() * state.bowl.length);
-    onDraw(state.bowl[idx]);
-  };
+  // Disable bowl if a participant is already selected or no prizes remain
+  if (state.drawnParticipantId || !hasPrizes(state)) {
+    bowlDiv.style.pointerEvents = "none";
+    bowlDiv.style.opacity = "0.6";
+  } else {
+    bowlDiv.style.pointerEvents = "auto";
+    bowlDiv.style.opacity = "1";
+    bowlDiv.onclick = () => {
+      if (state.bowl.length === 0 || !hasPrizes(state)) return;
+      const idx = Math.floor(Math.random() * state.bowl.length);
+      onDraw(state.bowl[idx]);
+    };
+  }
 }
 
 // Render log/history table
@@ -130,10 +152,14 @@ export function renderLog(state: AppState) {
 // Render current participant
 export function renderCurrentParticipant(state: AppState) {
   const cpDiv = document.getElementById("current-participant")!;
+  const spinBtn = document.getElementById("spin-btn") as HTMLButtonElement;
   if (state.drawnParticipantId) {
     const p = state.participants.find((x) => x.id === state.drawnParticipantId);
-    cpDiv.textContent = p ? `Selected: ${p.name}` : "";
+    cpDiv.textContent = p ? `參與者: ${p.name}` : "";
+    // Only enable spin if no spin is pending and prizes remain
+    spinBtn.disabled = !!state.pendingSpin || !hasPrizes(state);
   } else {
     cpDiv.textContent = "";
+    spinBtn.disabled = true;
   }
 }

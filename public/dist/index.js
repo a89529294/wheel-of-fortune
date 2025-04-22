@@ -373,6 +373,7 @@
     { id: "p9", name: "Ivan" },
     { id: "p10", name: "Judy" }
   ];
+  var PAUSE_TIME = 1e3;
 
   // src/storage.ts
   var STORAGE_KEY = "wof_app_state_v1";
@@ -387,9 +388,6 @@
     } catch {
       return null;
     }
-  }
-  function clearState() {
-    localStorage.removeItem(STORAGE_KEY);
   }
 
   // src/game-logic.ts
@@ -444,6 +442,12 @@
   // src/ui.ts
   function renderWheel(state) {
     const canvas = document.getElementById("wheel-canvas");
+    const overlay = document.getElementById("wheel-overlay");
+    if (!hasPrizes(state)) {
+      overlay.style.display = "flex";
+    } else {
+      overlay.style.display = "none";
+    }
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const prizes = state.prizes.filter((p) => state.prizesState[p.id] > 0);
@@ -474,14 +478,14 @@
       startAngle += sliceAngle;
     });
     ctx.beginPath();
-    ctx.arc(centerX, centerY, 40, 0, 2 * Math.PI);
+    ctx.arc(centerX, centerY, 32, 0, 2 * Math.PI);
     ctx.fillStyle = "#fff";
     ctx.fill();
     ctx.strokeStyle = "#6366f1";
     ctx.lineWidth = 4;
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(centerX, centerY - radius - 10);
+    ctx.moveTo(centerX, centerY - radius + 0);
     ctx.lineTo(centerX - 18, centerY - radius + 28);
     ctx.lineTo(centerX + 18, centerY - radius + 28);
     ctx.closePath();
@@ -520,29 +524,39 @@
       startAngle += sliceAngle;
     });
     ctx.beginPath();
-    ctx.arc(centerX, centerY, 40, 0, 2 * Math.PI);
+    ctx.arc(centerX, centerY, 32, 0, 2 * Math.PI);
     ctx.fillStyle = "#fff";
     ctx.fill();
     ctx.strokeStyle = "#6366f1";
     ctx.lineWidth = 4;
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(centerX, centerY - radius - 10);
+    ctx.moveTo(centerX, centerY - radius + 0);
     ctx.lineTo(centerX - 18, centerY - radius + 28);
     ctx.lineTo(centerX + 18, centerY - radius + 28);
     ctx.closePath();
     ctx.fillStyle = "#6366f1";
     ctx.fill();
   }
+  function hasPrizes(state) {
+    return Object.values(state.prizesState).some((count) => count > 0);
+  }
   function renderBowl(state, onDraw) {
     const label = document.getElementById("bowl-count-label");
     label.textContent = `\u5269\u9918\u53C3\u8207\u8005:${state.bowl.length}`;
     const bowlDiv = document.getElementById("bowl");
-    bowlDiv.onclick = () => {
-      if (state.bowl.length === 0) return;
-      const idx = Math.floor(Math.random() * state.bowl.length);
-      onDraw(state.bowl[idx]);
-    };
+    if (state.drawnParticipantId || !hasPrizes(state)) {
+      bowlDiv.style.pointerEvents = "none";
+      bowlDiv.style.opacity = "0.6";
+    } else {
+      bowlDiv.style.pointerEvents = "auto";
+      bowlDiv.style.opacity = "1";
+      bowlDiv.onclick = () => {
+        if (state.bowl.length === 0 || !hasPrizes(state)) return;
+        const idx = Math.floor(Math.random() * state.bowl.length);
+        onDraw(state.bowl[idx]);
+      };
+    }
   }
   function renderLog(state) {
     const logBody = document.getElementById("log-body");
@@ -555,11 +569,14 @@
   }
   function renderCurrentParticipant(state) {
     const cpDiv = document.getElementById("current-participant");
+    const spinBtn = document.getElementById("spin-btn");
     if (state.drawnParticipantId) {
       const p = state.participants.find((x) => x.id === state.drawnParticipantId);
-      cpDiv.textContent = p ? `Selected: ${p.name}` : "";
+      cpDiv.textContent = p ? `\u53C3\u8207\u8005: ${p.name}` : "";
+      spinBtn.disabled = !!state.pendingSpin || !hasPrizes(state);
     } else {
       cpDiv.textContent = "";
+      spinBtn.disabled = true;
     }
   }
 
@@ -581,25 +598,12 @@
       pendingSpin: void 0
     };
   }
-  function showSection(section) {
-    document.getElementById("setup-section").style.display = section === "setup" ? "block" : "none";
-    document.getElementById("game-section").style.display = section === "game" ? "block" : "none";
-  }
   function handleAdminButton() {
     const pw = prompt("Enter admin password:");
     if (pw === ADMIN_PASSWORD) {
-      renderSetupPage();
-      showSection("setup");
+      window.location.href = "setup.html";
     } else if (pw !== null) {
       alert("Incorrect password.");
-    }
-  }
-  function handleResetAll() {
-    if (confirm(
-      "Reset ALL data? This will clear all prizes, participants, and log."
-    )) {
-      clearState();
-      renderSetupPage();
     }
   }
   function handleResetSpins() {
@@ -641,8 +645,12 @@
     renderBowl(state, (pid) => handleDrawParticipant(state, pid));
     renderLog(state);
     const spinBtn = document.getElementById("spin-btn");
+    const gameResetBtn = document.getElementById(
+      "reset-spins-btn"
+    );
     spinBtn.disabled = !state.drawnParticipantId || !!state.pendingSpin;
     spinBtn.onclick = () => handleSpin(state);
+    gameResetBtn.disabled = loadState()?.log.length === 0;
   }
   function handleDrawParticipant(state, pid) {
     if (state.pendingSpin) {
@@ -695,6 +703,8 @@
     requestAnimationFrame(animate);
   }
   function handleSpin(state) {
+    const spinBtn = document.getElementById("spin-btn");
+    spinBtn.disabled = true;
     if (!state.drawnParticipantId || state.pendingSpin) return;
     const participant = state.participants.find(
       (p) => p.id === state.drawnParticipantId
@@ -707,16 +717,18 @@
       state.pendingSpin = { participantId: participant.id, prizeId: prize.id };
       saveState(state);
       (0, import_toastify_js.default)({
-        text: `Congrats to ${participant.name} for winning ${prize.name}!`,
-        duration: 2e3,
+        text: `\u606D\u559C <span style="color:#324e7b;background:#e0e7ff;padding:2px 8px;border-radius:4px;font-weight:bold;">${participant.name}</span> \u8D0F\u5F97 <span style="color:#7c4a18;background:#fef3c7;padding:2px 8px;border-radius:4px;font-weight:bold;">${prize.name}</span>!`,
+        escapeMarkup: false,
+        duration: PAUSE_TIME,
         gravity: "top",
         position: "left",
         close: false,
         style: {
-          background: "#10b981",
-          color: "#fff",
+          background: "#6ee7b7",
+          color: "#222",
           fontWeight: "bold",
-          fontSize: "18px"
+          fontSize: "18px",
+          boxShadow: "0 2px 10px rgba(16,185,129,0.07)"
         },
         stopOnFocus: false
       }).showToast();
@@ -726,18 +738,13 @@
         finalizePendingSpin(freshState);
         saveState(freshState);
         renderGamePage();
-      }, 2e3);
+      }, PAUSE_TIME);
     });
-  }
-  function renderSetupPage() {
-    showSection("setup");
   }
   function main() {
     document.getElementById("admin-btn").onclick = handleAdminButton;
-    document.getElementById("reset-all-btn").onclick = handleResetAll;
     document.getElementById("reset-spins-btn").onclick = handleResetSpins;
     renderGamePage();
-    showSection("game");
   }
   document.addEventListener("DOMContentLoaded", main);
 })();

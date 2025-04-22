@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wheel of Fortune - Game</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css"
+    />
+    <style>
+      html {
+        box-sizing: border-box;
+        font-size: 100%;
+      }
+      *,
+      *:before,
+      *:after {
+        box-sizing: inherit;
+      }
+      body {
+        font-family: sans-serif;
+        margin: 0;
+        background: #f3f4f6;
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 32px 16px 120px 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      h1 {
+        color: #6366f1;
+        margin-bottom: 16px;
+      }
+      .tabs {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 32px;
+      }
+      .tab-btn {
+        background: #fff;
+        color: #6366f1;
+        border: 1px solid #6366f1;
+        border-radius: 6px 6px 0 0;
+        padding: 10px 32px;
+        font-size: 1.1em;
+        cursor: pointer;
+        outline: none;
+        font-weight: bold;
+        transition: background 0.2s;
+      }
+      .tab-btn.active {
+        background: #6366f1;
+        color: #fff;
+      }
+      #game-area {
+        display: flex;
+        gap: 32px;
+        justify-content: center;
+        align-items: flex-start;
+        width: 100%;
+        align-items: stretch;
+        margin-bottom: 32px;
+      }
+      #wheel-container {
+        position: relative;
+      }
+      #wheel-canvas {
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+        margin-bottom: 16px;
+        display: block;
+      }
+      #wheel-overlay {
+        display: none;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.72);
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9999px;
+      }
+      #wheel-overlay span {
+        font-size: 2rem;
+        color: #374151;
+        font-weight: bold;
+        letter-spacing: 2px;
+      }
+      #current-participant {
+        margin-bottom: 16px;
+        font-size: 1.1em;
+        color: #374151;
+        min-height: 32px;
+      }
+      #spin-btn {
+        background: #6366f1;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 12px 36px;
+        font-size: 1.3em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      #spin-btn:disabled {
+        background: #c7d1f7;
+        cursor: not-allowed;
+      }
+      #log-reset-container {
+        width: 100%;
+        max-width: 700px;
+        display: flex;
+        flex-direction: column;
+      }
+      #log-container {
+        overflow: auto;
+        position: relative;
+        flex-grow: 1;
+      }
+      #log-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      }
+      #log-table th,
+      #log-table td {
+        padding: 8px 12px;
+        border-bottom: 1px solid #eee;
+        text-align: left;
+      }
+      #log-table th {
+        background: #f3f4f6;
+        position: sticky;
+        top: 0;
+      }
+      #log-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      #bowl {
+        position: fixed;
+        bottom: 32px;
+        right: 32px;
+        background: #fff;
+        border-radius: 50% 50% 60% 60%/60% 60% 80% 80%;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.07);
+        width: 200px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        z-index: 10;
+        overflow: visible;
+        padding-block: 16px;
+        cursor: pointer;
+      }
+      .bowl-count-label {
+        margin-top: 10px;
+        font-size: 1.1em;
+        color: #6366f1;
+        font-weight: bold;
+        letter-spacing: 1px;
+      }
+      .action-btn {
+        background: #fff;
+        color: #6366f1;
+        border: 1px solid #6366f1;
+        border-radius: 6px;
+        padding: 8px 24px;
+        font-size: 1em;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 16px;
+        margin-right: 8px;
+        transition: background 0.2s;
+      }
+      .action-btn:hover {
+        background: #6366f1;
+        color: #fff;
+      }
+      .action-btn:disabled {
+        background: #f3f4f6;
+        color: #bbb;
+        border-color: #eee;
+        cursor: not-allowed;
+      }
+
+      @media (max-width: 900px) {
+        #game-area {
+          flex-direction: column;
+          align-items: center;
+        }
+        #bowl {
+          position: static;
+          margin: 24px auto 0 auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>幸運轉盤</h1>
+      <div id="game-area">
+        <div id="wheel-and-button">
+          <div id="wheel-container">
+            <canvas id="wheel-canvas" width="400" height="400"></canvas>
+            <div id="wheel-overlay">
+              <span
+                style="
+                  font-size: 2rem;
+                  color: #374151;
+                  font-weight: bold;
+                  letter-spacing: 2px;
+                "
+                >所有獎項已抽完！</span
+              >
+            </div>
+          </div>
+          <div id="current-participant"></div>
+          <button id="spin-btn">抽獎</button>
+        </div>
+        <div id="bowl">
+          <div style="font-weight: bold; margin-top: 8px">點我抽下一位</div>
+          <div class="bowl-count-label" id="bowl-count-label">剩餘參與者:0</div>
+        </div>
+        <div id="log-reset-container">
+          <div id="log-container">
+            <table id="log-table">
+              <thead>
+                <tr>
+                  <th>輪次</th>
+                  <th>中獎者</th>
+                  <th>獎項</th>
+                </tr>
+              </thead>
+              <tbody id="log-body"></tbody>
+            </table>
+          </div>
+          <button class="action-btn" id="reset-spins-btn">
+            重置獎項及中獎者
+          </button>
+        </div>
+      </div>
+      <button
+        class="action-btn"
+        id="admin-btn"
+        style="position: fixed; bottom: 32px; left: 32px; z-index: 30"
+      >
+        管理員
+      </button>
+    </div>
+    <script src="dist/index.js"></script>
+  </body>
+</html>

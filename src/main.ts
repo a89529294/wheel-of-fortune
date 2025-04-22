@@ -3,6 +3,7 @@ import {
   HARDCODED_PRIZES,
   HARDCODED_PARTICIPANTS,
   ADMIN_PASSWORD,
+  PAUSE_TIME,
 } from "./constants";
 import { saveState, loadState, clearState } from "./storage";
 import {
@@ -36,18 +37,10 @@ function createInitialState(): AppState {
   };
 }
 
-function showSection(section: "setup" | "game") {
-  (document.getElementById("setup-section") as HTMLElement).style.display =
-    section === "setup" ? "block" : "none";
-  (document.getElementById("game-section") as HTMLElement).style.display =
-    section === "game" ? "block" : "none";
-}
-
 function handleAdminButton() {
   const pw = prompt("Enter admin password:");
   if (pw === ADMIN_PASSWORD) {
-    renderSetupPage();
-    showSection("setup");
+    window.location.href = "setup.html";
   } else if (pw !== null) {
     alert("Incorrect password.");
   }
@@ -106,8 +99,13 @@ function renderGamePage() {
   renderBowl(state, (pid) => handleDrawParticipant(state, pid));
   renderLog(state);
   const spinBtn = document.getElementById("spin-btn") as HTMLButtonElement;
+  const gameResetBtn = document.getElementById(
+    "reset-spins-btn"
+  ) as HTMLButtonElement;
   spinBtn.disabled = !state.drawnParticipantId || !!state.pendingSpin;
   spinBtn.onclick = () => handleSpin(state);
+
+  gameResetBtn.disabled = loadState()?.log.length === 0;
 }
 
 function handleDrawParticipant(state: AppState, pid: string) {
@@ -164,6 +162,8 @@ function animateWheelToPrize(prize: Prize, cb: () => void) {
 }
 
 function handleSpin(state: AppState) {
+  const spinBtn = document.getElementById("spin-btn") as HTMLButtonElement;
+  spinBtn.disabled = true; // Disable immediately on spin
   if (!state.drawnParticipantId || state.pendingSpin) return;
   const participant = state.participants.find(
     (p) => p.id === state.drawnParticipantId
@@ -177,16 +177,18 @@ function handleSpin(state: AppState) {
     saveState(state);
     // Show toast immediately after spin stops
     Toastify({
-      text: `Congrats to ${participant.name} for winning ${prize.name}!`,
-      duration: 2000,
+      text: `恭喜 <span style="color:#324e7b;background:#e0e7ff;padding:2px 8px;border-radius:4px;font-weight:bold;">${participant.name}</span> 贏得 <span style="color:#7c4a18;background:#fef3c7;padding:2px 8px;border-radius:4px;font-weight:bold;">${prize.name}</span>!`,
+      escapeMarkup: false,
+      duration: PAUSE_TIME,
       gravity: "top",
       position: "left",
       close: false,
       style: {
-        background: "#10b981",
-        color: "#fff",
+        background: "#6ee7b7",
+        color: "#222",
         fontWeight: "bold",
         fontSize: "18px",
+        boxShadow: "0 2px 10px rgba(16,185,129,0.07)",
       },
       stopOnFocus: false,
     }).showToast();
@@ -197,24 +199,22 @@ function handleSpin(state: AppState) {
       finalizePendingSpin(freshState);
       saveState(freshState);
       renderGamePage();
-    }, 2000);
+    }, PAUSE_TIME);
   });
 }
 
 function renderSetupPage() {
   // TODO: implement prize/participant setup UI
-  showSection("setup");
 }
 
 function main() {
   (document.getElementById("admin-btn") as HTMLButtonElement).onclick =
     handleAdminButton;
-  (document.getElementById("reset-all-btn") as HTMLButtonElement).onclick =
-    handleResetAll;
+  // (document.getElementById("reset-all-btn") as HTMLButtonElement).onclick =
+  //   handleResetAll;
   (document.getElementById("reset-spins-btn") as HTMLButtonElement).onclick =
     handleResetSpins;
   renderGamePage();
-  showSection("game");
 }
 
 document.addEventListener("DOMContentLoaded", main);

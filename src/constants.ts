@@ -37,3 +37,5 @@ export const HARDCODED_PARTICIPANTS = [
   { id: "p9", name: "Ivan" },
   { id: "p10", name: "Judy" },
 ];
+
+export const PAUSE_TIME = 1000;
