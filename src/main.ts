@@ -20,7 +20,7 @@ import {
 } from "./ui";
 import Toastify from "toastify-js";
 
-function createInitialState(): AppState {
+function createPrepopulatedState(): AppState {
   const prizesState: { [id: string]: number } = {};
   HARDCODED_PRIZES.forEach((prize) => {
     prizesState[prize.id] = prize.initialHitCount;
@@ -37,13 +37,19 @@ function createInitialState(): AppState {
   };
 }
 
-function handleAdminButton() {
-  const pw = prompt("Enter admin password:");
-  if (pw === ADMIN_PASSWORD) {
-    window.location.href = "setup.html";
-  } else if (pw !== null) {
-    alert("Incorrect password.");
-  }
+function createInitialState(): AppState {
+  const prizesState: { [id: string]: number } = {};
+
+  return {
+    prizes: [],
+    participants: [],
+    bowl: [],
+    prizesState,
+    log: [],
+    spinNumber: 1,
+    drawnParticipantId: undefined,
+    pendingSpin: undefined,
+  };
 }
 
 function handleResetAll() {
@@ -99,13 +105,14 @@ function renderGamePage() {
   renderBowl(state, (pid) => handleDrawParticipant(state, pid));
   renderLog(state);
   const spinBtn = document.getElementById("spin-btn") as HTMLButtonElement;
+  const bowlBtn = document.getElementById("bowl") as HTMLButtonElement;
   const gameResetBtn = document.getElementById(
     "reset-spins-btn"
   ) as HTMLButtonElement;
   spinBtn.disabled = !state.drawnParticipantId || !!state.pendingSpin;
   spinBtn.onclick = () => handleSpin(state);
-
   gameResetBtn.disabled = loadState()?.log.length === 0 || !!state.pendingSpin;
+  bowlBtn.disabled = loadState()?.bowl.length === 0;
 }
 
 function handleDrawParticipant(state: AppState, pid: string) {
@@ -180,7 +187,20 @@ function handleSpin(state: AppState) {
     (p) => p.id === state.drawnParticipantId
   );
   if (!participant) return;
-  const prizeId = pickPrizeId(state);
+
+  // --- Pre-assign logic: If participant has assignedPrizeId, use it if available ---
+  let prizeId: string | undefined = undefined;
+  if (participant.assignedPrizeId) {
+    // Only allow if the assigned prize still has hit count left
+    const prizeCount = state.prizesState[participant.assignedPrizeId];
+    if (prizeCount && prizeCount > 0) {
+      prizeId = participant.assignedPrizeId;
+    }
+  }
+  // Fallback to normal pick
+  if (!prizeId) {
+    prizeId = pickPrizeId(state);
+  }
   const prize = state.prizes.find((p) => p.id === prizeId);
   if (!prize) return;
 
@@ -221,8 +241,6 @@ function renderSetupPage() {
 }
 
 function main() {
-  (document.getElementById("admin-btn") as HTMLButtonElement).onclick =
-    handleAdminButton;
   // (document.getElementById("reset-all-btn") as HTMLButtonElement).onclick =
   //   handleResetAll;
   (document.getElementById("reset-spins-btn") as HTMLButtonElement).onclick =

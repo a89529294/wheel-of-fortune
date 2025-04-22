@@ -1,5 +1,5 @@
 import { AppState, Participant, SpinLogEntry, Prize } from "./types";
-import { getRotationForPrize } from "./game-logic";
+import { getRotationForPrize, getAdjustedProbabilities } from "./game-logic";
 
 // Wheel rendering
 export function renderWheel(state: AppState) {
@@ -13,13 +13,15 @@ export function renderWheel(state: AppState) {
   const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const prizes = state.prizes.filter((p) => state.prizesState[p.id] > 0);
-  const totalProb = prizes.reduce((sum, p) => sum + p.probability, 0);
+  const adjusted = getAdjustedProbabilities(state, prizes);
+  const totalProb = adjusted.reduce((sum, val) => sum + val, 0);
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
   const radius = 200;
   let startAngle = -Math.PI / 2;
+
   prizes.forEach((prize, i) => {
-    const sliceAngle = (prize.probability / totalProb) * 2 * Math.PI;
+    const sliceAngle = (adjusted[i] / totalProb) * 2 * Math.PI;
     ctx.beginPath();
     ctx.moveTo(centerX, centerY);
     ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
@@ -66,13 +68,15 @@ export function drawWheelWithRotation(state: AppState, rot: number) {
   const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const prizes = state.prizes.filter((p) => state.prizesState[p.id] > 0);
-  const totalProb = prizes.reduce((sum, p) => sum + p.probability, 0);
+  const adjusted = getAdjustedProbabilities(state, prizes);
+  const totalProb = adjusted.reduce((sum, val) => sum + val, 0);
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
   const radius = 200;
   let startAngle = -Math.PI / 2 + rot;
+
   prizes.forEach((prize, i) => {
-    const sliceAngle = (prize.probability / totalProb) * 2 * Math.PI;
+    const sliceAngle = (adjusted[i] / totalProb) * 2 * Math.PI;
     ctx.beginPath();
     ctx.moveTo(centerX, centerY);
     ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
@@ -95,6 +99,7 @@ export function drawWheelWithRotation(state: AppState, rot: number) {
     ctx.restore();
     startAngle += sliceAngle;
   });
+
   // Draw center circle
   ctx.beginPath();
   ctx.arc(centerX, centerY, 32, 0, 2 * Math.PI);

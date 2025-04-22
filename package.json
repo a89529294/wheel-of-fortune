@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "esbuild src/main.ts --bundle --outfile=public/dist/index.js",
-    "dev": "concurrently \"esbuild src/main.ts --bundle --outfile=public/dist/index.js --watch\" \"http-server public -c-1\""
+    "build": "esbuild src/main.ts --bundle --outfile=public/dist/index.js && esbuild src/setup.ts --bundle --outfile=public/dist/setup.js",
+    "dev": "concurrently \"esbuild src/main.ts --bundle --outfile=public/dist/index.js --watch\" \"esbuild src/setup.ts --bundle --outfile=public/dist/setup.js --watch\" \"http-server public -c-1\""
   },
   "keywords": [],
   "author": "Albert Chang",

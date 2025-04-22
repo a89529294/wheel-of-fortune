@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wheel of Fortune Setup</title>
+    <style>
+      html {
+        box-sizing: border-box;
+        font-size: 100%;
+      }
+      *,
+      *:before,
+      *:after {
+        box-sizing: inherit;
+      }
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: #f7f8fa;
+        margin: 0;
+        padding: 0;
+        color: #222;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .nav {
+        display: flex;
+        background: #2d3748;
+        padding: 0.5rem 1rem;
+        align-items: center;
+      }
+      .nav-btn {
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 1rem;
+        margin-right: 1rem;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        border-radius: 4px 4px 0 0;
+        transition: background 0.2s;
+        display: block;
+        text-decoration: none;
+      }
+      .nav-btn.active,
+      .nav-btn:hover {
+        background: #4fd1c5;
+        color: #222;
+      }
+      .container-wrapper {
+        flex-grow: 1;
+        position: relative;
+      }
+      .container {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        padding: 2rem;
+        display: flex;
+        gap: 16px;
+        position: absolute;
+        inset: 0;
+      }
+      main section {
+        margin-bottom: 2rem;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      h2 {
+        margin-top: 0;
+        color: #3182ce;
+      }
+      #prizes-table-wrapper,
+      #participants-table-wrapper {
+        flex-grow: 1;
+        position: relative;
+      }
+      #prizes-table-inner-wrapper,
+      #participants-table-inner-wrapper {
+        position: absolute;
+        inset: 0;
+        overflow: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 0.5rem;
+        background: #f9fafb;
+        border-radius: 8px;
+      }
+      th,
+      td {
+        padding: 0.75rem 0.5rem;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      th {
+        background: #e6fffa;
+        color: #234e52;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      .action-btn,
+      .secondary-btn,
+      .danger-btn {
+        padding: 0.5rem 1.2rem;
+        border-radius: 5px;
+        border: none;
+        font-size: 1rem;
+        cursor: pointer;
+        margin-right: 0.5rem;
+        margin-top: 0.5rem;
+        transition: background 0.2s, color 0.2s;
+      }
+      .action-btn {
+        background: #38b2ac;
+        color: #fff;
+      }
+      .action-btn:hover {
+        background: #319795;
+      }
+      .secondary-btn {
+        background: #e2e8f0;
+        color: #222;
+      }
+      .secondary-btn:hover {
+        background: #cbd5e1;
+      }
+      .danger-btn {
+        background: #e53e3e;
+        color: #fff;
+      }
+      .danger-btn:hover {
+        background: #c53030;
+      }
+      .reset-controls {
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        z-index: 10;
+      }
+      /* Modal styles */
+      .modal {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(1);
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 6px 32px rgba(0, 0, 0, 0.15);
+        z-index: 1001;
+        width: 95%;
+        max-width: 400px;
+        display: none;
+        flex-direction: column;
+        animation: modalIn 0.2s;
+      }
+      .modal-content {
+        padding: 2rem 1.5rem 1.5rem 1.5rem;
+      }
+      .modal-actions {
+        margin-top: 1.2rem;
+        display: flex;
+        justify-content: flex-end;
+      }
+      .modal label {
+        display: block;
+        margin-bottom: 1rem;
+        font-size: 1rem;
+      }
+      .modal input,
+      .modal select {
+        width: 100%;
+        font-size: 1rem;
+        padding: 0.35rem 0.5rem;
+        margin-top: 0.3rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        background: #f7fafc;
+      }
+      .modal {
+        display: flex;
+      }
+      .hidden {
+        display: none !important;
+      }
+      .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.25);
+        z-index: 1000;
+        display: block;
+      }
+      .overlay.hidden {
+        display: none;
+      }
+      @media (max-width: 600px) {
+        .container {
+          padding: 0.7rem;
+        }
+        .modal-content {
+          padding: 1rem 0.5rem 0.7rem 0.5rem;
+        }
+        th,
+        td {
+          padding: 0.5rem 0.2rem;
+        }
+      }
+      /* Animation */
+      @keyframes modalIn {
+        from {
+          transform: translate(-50%, -50%) scale(0.95);
+          opacity: 0;
+        }
+        to {
+          transform: translate(-50%, -50%) scale(1);
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      // Admin authentication on direct access
+      // const ADMIN_PASSWORD = "iamadmin";
+      // if (!sessionStorage.getItem("admin-authenticated")) {
+      //   const input = window.prompt("請輸入管理員密碼:");
+      //   if (input !== ADMIN_PASSWORD) {
+      //     alert("密碼錯誤，將返回遊戲頁面。");
+      //     window.location.href = "game.html";
+      //   } else {
+      //     sessionStorage.setItem("admin-authenticated", "1");
+      //   }
+      // }
+
+      // window.addEventListener("beforeunload", (e) => {
+      //   sessionStorage.removeItem("admin-authenticated");
+      // });
+    </script>
+
+    <nav class="nav">
+      <a href="game.html" id="game-nav" class="nav-btn">遊戲</a>
+    </nav>
+    <div class="container-wrapper">
+      <main class="container">
+        <section class="prizes-section">
+          <h2>獎項設定</h2>
+          <div id="prizes-table-wrapper">
+            <div id="prizes-table-inner-wrapper">
+              <table id="prizes-table">
+                <thead>
+                  <tr>
+                    <th>名稱</th>
+                    <th>初始機率</th>
+                    <th>中獎次數</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Prize rows will be dynamically inserted here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <button id="add-prize-btn" class="action-btn">新增獎項</button>
+        </section>
+
+        <section class="participants-section">
+          <h2>參與者設定</h2>
+          <div id="participants-table-wrapper">
+            <div id="participants-table-inner-wrapper">
+              <table id="participants-table">
+                <thead>
+                  <tr>
+                    <th>名稱</th>
+                    <th>指派獎項</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Participant rows will be dynamically inserted here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <button id="add-participant-btn" class="action-btn">
+            新增參與者
+          </button>
+        </section>
+
+        <div class="reset-controls">
+          <button id="reset-all-btn" class="danger-btn">重置所有</button>
+        </div>
+      </main>
+    </div>
+
+    <!-- Prize Modal (hidden by default) -->
+    <div id="prize-modal" class="modal hidden">
+      <div class="modal-content">
+        <h3 id="prize-modal-title">新增/編輯獎項</h3>
+        <form id="prize-form">
+          <label>名稱: <input type="text" id="prize-name" required /></label>
+          <label
+            >初始機率:
+            <input type="number" id="prize-probability" min="1" required
+          /></label>
+          <label
+            >中獎次數:
+            <input type="number" id="prize-hitcount" min="1" required
+          /></label>
+          <div class="modal-actions">
+            <button type="submit" class="action-btn">儲存</button>
+            <button type="button" id="cancel-prize-btn" class="secondary-btn">
+              取消
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Participant Modal (hidden by default) -->
+    <div id="participant-modal" class="modal hidden">
+      <div class="modal-content">
+        <h3 id="participant-modal-title">新增/編輯參與者</h3>
+        <form id="participant-form">
+          <label
+            >名稱: <input type="text" id="participant-name" required
+          /></label>
+          <label
+            >指派獎項:
+            <select id="participant-prize">
+              <option value="">(無)</option>
+              <!-- Prize options will be dynamically inserted here -->
+            </select>
+          </label>
+          <div class="modal-actions">
+            <button type="submit" class="action-btn">儲存</button>
+            <button
+              type="button"
+              id="cancel-participant-btn"
+              class="secondary-btn"
+            >
+              取消
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="overlay" class="overlay hidden"></div>
+    <script src="dist/setup.js"></script>
+  </body>
+</html>

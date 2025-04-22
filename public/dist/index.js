@@ -334,45 +334,6 @@
   });
 
   // src/constants.ts
-  var ADMIN_PASSWORD = "iamadmin";
-  var HARDCODED_PRIZES = [
-    {
-      id: "a",
-      name: "Prize A",
-      probability: 10,
-      hitCount: 1,
-      initialProbability: 10,
-      initialHitCount: 1
-    },
-    {
-      id: "b",
-      name: "Prize B",
-      probability: 30,
-      hitCount: 2,
-      initialProbability: 30,
-      initialHitCount: 2
-    },
-    {
-      id: "c",
-      name: "Prize C",
-      probability: 60,
-      hitCount: 5,
-      initialProbability: 60,
-      initialHitCount: 5
-    }
-  ];
-  var HARDCODED_PARTICIPANTS = [
-    { id: "p1", name: "Alice" },
-    { id: "p2", name: "Bob" },
-    { id: "p3", name: "Charlie" },
-    { id: "p4", name: "Diana" },
-    { id: "p5", name: "Eve" },
-    { id: "p6", name: "Frank" },
-    { id: "p7", name: "Grace" },
-    { id: "p8", name: "Heidi" },
-    { id: "p9", name: "Ivan" },
-    { id: "p10", name: "Judy" }
-  ];
   var PAUSE_TIME = 3e3;
 
   // src/storage.ts
@@ -391,14 +352,46 @@
   }
 
   // src/game-logic.ts
+  function getAdjustedProbabilities(state, prizes) {
+    return prizes.map(
+      (p) => p.initialProbability * (state.prizesState[p.id] / p.initialHitCount)
+    );
+  }
   function pickPrizeId(state) {
     const prizes = state.prizes.filter((p) => state.prizesState[p.id] > 0);
-    const weights = prizes.map((p) => p.probability);
-    const total = weights.reduce((a, b) => a + b, 0);
-    let r = Math.random() * total;
-    for (let i = 0; i < prizes.length; ++i) {
-      if (r < weights[i]) return prizes[i].id;
-      r -= weights[i];
+    const adjusted = getAdjustedProbabilities(state, prizes);
+    const reserved = {};
+    const bowlSet = new Set(state.bowl);
+    for (const p of state.participants) {
+      if (p.assignedPrizeId && bowlSet.has(p.id)) {
+        reserved[p.assignedPrizeId] = (reserved[p.assignedPrizeId] || 0) + 1;
+      }
+    }
+    let attempts = 0;
+    const maxAttempts = 100;
+    while (attempts < maxAttempts) {
+      let total = adjusted.reduce((a, b) => a + b, 0);
+      let r = Math.random() * total;
+      let chosenIdx = 0;
+      for (let i = 0; i < prizes.length; ++i) {
+        if (r < adjusted[i]) {
+          chosenIdx = i;
+          break;
+        }
+        r -= adjusted[i];
+      }
+      const prize = prizes[chosenIdx];
+      const left = state.prizesState[prize.id];
+      const reservedCount = reserved[prize.id] || 0;
+      if (left > reservedCount) {
+        return prize.id;
+      }
+      attempts++;
+    }
+    for (const prize of prizes) {
+      const left = state.prizesState[prize.id];
+      const reservedCount = reserved[prize.id] || 0;
+      if (left > reservedCount) return prize.id;
     }
     return prizes[0].id;
   }
@@ -426,12 +419,13 @@
     const prizes = state.prizes.filter(
       (p) => state.prizesState[p.id] > 0 || p.id === prize.id
     );
-    const totalProb = prizes.reduce((sum, p) => sum + p.probability, 0);
+    const adjusted = getAdjustedProbabilities(state, prizes);
+    const totalProb = adjusted.reduce((sum, val) => sum + val, 0);
     let angles = [];
     let angle = -Math.PI / 2;
-    for (const p of prizes) {
-      const slice = p.probability / totalProb * 2 * Math.PI;
-      angles.push({ id: p.id, start: angle, end: angle + slice });
+    for (let i = 0; i < prizes.length; ++i) {
+      const slice = adjusted[i] / totalProb * 2 * Math.PI;
+      angles.push({ id: prizes[i].id, start: angle, end: angle + slice });
       angle += slice;
     }
     const target = angles.find((a) => a.id === prize.id);
@@ -451,13 +445,14 @@
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const prizes = state.prizes.filter((p) => state.prizesState[p.id] > 0);
-    const totalProb = prizes.reduce((sum, p) => sum + p.probability, 0);
+    const adjusted = getAdjustedProbabilities(state, prizes);
+    const totalProb = adjusted.reduce((sum, val) => sum + val, 0);
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
     const radius = 200;
     let startAngle = -Math.PI / 2;
     prizes.forEach((prize, i) => {
-      const sliceAngle = prize.probability / totalProb * 2 * Math.PI;
+      const sliceAngle = adjusted[i] / totalProb * 2 * Math.PI;
       ctx.beginPath();
       ctx.moveTo(centerX, centerY);
       ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
@@ -497,13 +492,14 @@
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const prizes = state.prizes.filter((p) => state.prizesState[p.id] > 0);
-    const totalProb = prizes.reduce((sum, p) => sum + p.probability, 0);
+    const adjusted = getAdjustedProbabilities(state, prizes);
+    const totalProb = adjusted.reduce((sum, val) => sum + val, 0);
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
     const radius = 200;
     let startAngle = -Math.PI / 2 + rot;
     prizes.forEach((prize, i) => {
-      const sliceAngle = prize.probability / totalProb * 2 * Math.PI;
+      const sliceAngle = adjusted[i] / totalProb * 2 * Math.PI;
       ctx.beginPath();
       ctx.moveTo(centerX, centerY);
       ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
@@ -584,27 +580,16 @@
   var import_toastify_js = __toESM(require_toastify());
   function createInitialState() {
     const prizesState = {};
-    HARDCODED_PRIZES.forEach((prize) => {
-      prizesState[prize.id] = prize.initialHitCount;
-    });
     return {
-      prizes: HARDCODED_PRIZES.map((p) => ({ ...p })),
-      participants: HARDCODED_PARTICIPANTS.map((p) => ({ ...p })),
-      bowl: HARDCODED_PARTICIPANTS.map((p) => p.id),
+      prizes: [],
+      participants: [],
+      bowl: [],
       prizesState,
       log: [],
       spinNumber: 1,
       drawnParticipantId: void 0,
       pendingSpin: void 0
     };
-  }
-  function handleAdminButton() {
-    const pw = prompt("Enter admin password:");
-    if (pw === ADMIN_PASSWORD) {
-      window.location.href = "setup.html";
-    } else if (pw !== null) {
-      alert("Incorrect password.");
-    }
   }
   function handleResetSpins() {
     if (confirm(
@@ -645,12 +630,14 @@
     renderBowl(state, (pid) => handleDrawParticipant(state, pid));
     renderLog(state);
     const spinBtn = document.getElementById("spin-btn");
+    const bowlBtn = document.getElementById("bowl");
     const gameResetBtn = document.getElementById(
       "reset-spins-btn"
     );
     spinBtn.disabled = !state.drawnParticipantId || !!state.pendingSpin;
     spinBtn.onclick = () => handleSpin(state);
     gameResetBtn.disabled = loadState()?.log.length === 0 || !!state.pendingSpin;
+    bowlBtn.disabled = loadState()?.bowl.length === 0;
   }
   function handleDrawParticipant(state, pid) {
     if (state.pendingSpin) {
@@ -719,7 +706,16 @@
       (p) => p.id === state.drawnParticipantId
     );
     if (!participant) return;
-    const prizeId = pickPrizeId(state);
+    let prizeId = void 0;
+    if (participant.assignedPrizeId) {
+      const prizeCount = state.prizesState[participant.assignedPrizeId];
+      if (prizeCount && prizeCount > 0) {
+        prizeId = participant.assignedPrizeId;
+      }
+    }
+    if (!prizeId) {
+      prizeId = pickPrizeId(state);
+    }
     const prize = state.prizes.find((p) => p.id === prizeId);
     if (!prize) return;
     animateWheelToPrize(prize, () => {
@@ -751,7 +747,6 @@
     });
   }
   function main() {
-    document.getElementById("admin-btn").onclick = handleAdminButton;
     document.getElementById("reset-spins-btn").onclick = handleResetSpins;
     renderGamePage();
   }
