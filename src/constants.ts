@@ -38,4 +38,4 @@ export const HARDCODED_PARTICIPANTS = [
   { id: "p10", name: "Judy" },
 ];
 
-export const PAUSE_TIME = 1000;
+export const PAUSE_TIME = 3000;

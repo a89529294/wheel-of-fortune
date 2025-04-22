@@ -373,7 +373,7 @@
     { id: "p9", name: "Ivan" },
     { id: "p10", name: "Judy" }
   ];
-  var PAUSE_TIME = 1e3;
+  var PAUSE_TIME = 3e3;
 
   // src/storage.ts
   var STORAGE_KEY = "wof_app_state_v1";
@@ -608,7 +608,7 @@
   }
   function handleResetSpins() {
     if (confirm(
-      "Reset spins? This will restore all participants to the bowl, reset prize hit counts and log. Prizes and participants will be kept."
+      "\u91CD\u7F6E\u62BD\u734E\u7D00\u9304\uFF1F\u9019\u5C07\u6703\u6062\u5FA9\u6240\u6709\u53C3\u8207\u8005\u81F3\u62BD\u734E\u6C60\uFF0C\u91CD\u8A2D\u6240\u6709\u734E\u9805\u6B21\u6578\u53CA\u62BD\u734E\u7D00\u9304\u3002\u734E\u9805\u8207\u53C3\u8207\u8005\u540D\u55AE\u5C07\u6703\u4FDD\u7559\u3002"
     )) {
       const state = loadState();
       if (!state) return;
@@ -650,7 +650,7 @@
     );
     spinBtn.disabled = !state.drawnParticipantId || !!state.pendingSpin;
     spinBtn.onclick = () => handleSpin(state);
-    gameResetBtn.disabled = loadState()?.log.length === 0;
+    gameResetBtn.disabled = loadState()?.log.length === 0 || !!state.pendingSpin;
   }
   function handleDrawParticipant(state, pid) {
     if (state.pendingSpin) {
@@ -692,6 +692,11 @@
       const t = Math.min(1, elapsed / duration);
       const ease = 1 - Math.pow(1 - t, 3);
       const angle2 = ease * finalAngle;
+      if (!state) {
+        animating = false;
+        cb();
+        return;
+      }
       drawWheelWithRotation(state, angle2);
       if (t < 1) {
         requestAnimationFrame(animate);
@@ -704,7 +709,11 @@
   }
   function handleSpin(state) {
     const spinBtn = document.getElementById("spin-btn");
+    const resetSpinsBtn = document.getElementById(
+      "reset-spins-btn"
+    );
     spinBtn.disabled = true;
+    resetSpinsBtn.disabled = true;
     if (!state.drawnParticipantId || state.pendingSpin) return;
     const participant = state.participants.find(
       (p) => p.id === state.drawnParticipantId

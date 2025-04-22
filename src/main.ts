@@ -1,4 +1,4 @@
-import { AppState } from "./types";
+import { AppState, Prize } from "./types";
 import {
   HARDCODED_PRIZES,
   HARDCODED_PARTICIPANTS,
@@ -60,7 +60,7 @@ function handleResetAll() {
 function handleResetSpins() {
   if (
     confirm(
-      "Reset spins? This will restore all participants to the bowl, reset prize hit counts and log. Prizes and participants will be kept."
+      "重置抽獎紀錄？這將會恢復所有參與者至抽獎池，重設所有獎項次數及抽獎紀錄。獎項與參與者名單將會保留。"
     )
   ) {
     const state = loadState();
@@ -105,7 +105,7 @@ function renderGamePage() {
   spinBtn.disabled = !state.drawnParticipantId || !!state.pendingSpin;
   spinBtn.onclick = () => handleSpin(state);
 
-  gameResetBtn.disabled = loadState()?.log.length === 0;
+  gameResetBtn.disabled = loadState()?.log.length === 0 || !!state.pendingSpin;
 }
 
 function handleDrawParticipant(state: AppState, pid: string) {
@@ -150,6 +150,12 @@ function animateWheelToPrize(prize: Prize, cb: () => void) {
     const t = Math.min(1, elapsed / duration);
     const ease = 1 - Math.pow(1 - t, 3);
     const angle = ease * finalAngle;
+    // Defensive: check state
+    if (!state) {
+      animating = false;
+      cb();
+      return;
+    }
     drawWheelWithRotation(state, angle);
     if (t < 1) {
       requestAnimationFrame(animate);
@@ -163,7 +169,12 @@ function animateWheelToPrize(prize: Prize, cb: () => void) {
 
 function handleSpin(state: AppState) {
   const spinBtn = document.getElementById("spin-btn") as HTMLButtonElement;
+  const resetSpinsBtn = document.getElementById(
+    "reset-spins-btn"
+  ) as HTMLButtonElement;
   spinBtn.disabled = true; // Disable immediately on spin
+  resetSpinsBtn.disabled = true; // Disable immediately on spin
+
   if (!state.drawnParticipantId || state.pendingSpin) return;
   const participant = state.participants.find(
     (p) => p.id === state.drawnParticipantId
@@ -172,9 +183,11 @@ function handleSpin(state: AppState) {
   const prizeId = pickPrizeId(state);
   const prize = state.prizes.find((p) => p.id === prizeId);
   if (!prize) return;
+
   animateWheelToPrize(prize, () => {
     state.pendingSpin = { participantId: participant.id, prizeId: prize.id };
     saveState(state);
+
     // Show toast immediately after spin stops
     Toastify({
       text: `恭喜 <span style="color:#324e7b;background:#e0e7ff;padding:2px 8px;border-radius:4px;font-weight:bold;">${participant.name}</span> 贏得 <span style="color:#7c4a18;background:#fef3c7;padding:2px 8px;border-radius:4px;font-weight:bold;">${prize.name}</span>!`,
