@@ -3,10 +3,279 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>Wheel of Fortune</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css"
+    />
+    <style>
+      html {
+        box-sizing: border-box;
+        font-size: 100%;
+      }
+      *,
+      *:before,
+      *:after {
+        box-sizing: inherit;
+      }
+      body {
+        font-family: sans-serif;
+        margin: 0;
+        background: #f7f7fb;
+        color: #222;
+      }
+      #main-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        justify-content: flex-start;
+      }
+      #setup-section,
+      #game-section {
+        display: none;
+        width: 100%;
+        max-width: 900px;
+        margin-top: 40px;
+      }
+      #bowl {
+        position: fixed;
+        bottom: 32px;
+        right: 32px;
+        background: #fff;
+        border-radius: 50% 50% 60% 60%/60% 60% 80% 80%;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.07);
+        width: 200px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        z-index: 10;
+        overflow: visible;
+        padding-block: 16px;
+      }
+      #bowl-slips {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: flex-end;
+        width: 90%;
+        height: 65px;
+        margin-bottom: 12px;
+      }
+      .slip {
+        background: #e0e7ff;
+        border-radius: 4px;
+        padding: 2px 8px;
+        margin: 2px;
+        font-size: 0.95em;
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.2s;
+      }
+      .slip:hover {
+        background: #b6c6ff;
+      }
+      #wheel-container {
+        margin: 0 auto 32px auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      #wheel-canvas {
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        width: 420px;
+        height: 420px;
+        display: block;
+      }
+      #spin-btn {
+        margin-top: 18px;
+        padding: 10px 28px;
+        font-size: 1.1em;
+        border-radius: 8px;
+        border: none;
+        background: #6366f1;
+        color: #fff;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      #spin-btn:disabled {
+        background: #c7d1f7;
+        cursor: not-allowed;
+      }
+      #log-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      }
+      #log-table th,
+      #log-table td {
+        padding: 8px 12px;
+        border-bottom: 1px solid #eee;
+        text-align: left;
+      }
+      #log-table th {
+        background: #f3f4f6;
+        position: sticky;
+        top: 0;
+      }
+      #log-table tr:last-child td {
+        border-bottom: none;
+      }
+      .action-btn {
+        margin: 8px 6px 0 0;
+        padding: 6px 18px;
+        border-radius: 6px;
+        border: none;
+        background: #f3f4f6;
+        color: #222;
+        cursor: pointer;
+        font-size: 1em;
+        transition: background 0.2s;
+      }
+      .action-btn:hover {
+        background: #e0e7ff;
+      }
+      /* Setup page styles */
+      .setup-field {
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+      }
+      .setup-field label {
+        width: 130px;
+        font-weight: bold;
+        margin-right: 10px;
+      }
+      .setup-field input,
+      .setup-field select {
+        padding: 6px 10px;
+        border-radius: 4px;
+        border: 1px solid #d1d5db;
+        font-size: 1em;
+      }
+      .setup-list {
+        margin-bottom: 24px;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        padding: 18px;
+      }
+      .setup-list h3 {
+        margin-top: 0;
+      }
+      .setup-list table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .setup-list th,
+      .setup-list td {
+        padding: 7px 10px;
+        border-bottom: 1px solid #eee;
+        text-align: left;
+      }
+      .setup-list th {
+        background: #f3f4f6;
+      }
+      .setup-list tr:last-child td {
+        border-bottom: none;
+      }
+      .setup-btn {
+        margin-top: 8px;
+        padding: 7px 18px;
+        border-radius: 6px;
+        border: none;
+        background: #6366f1;
+        color: #fff;
+        cursor: pointer;
+        font-size: 1em;
+        transition: background 0.2s;
+      }
+      .setup-btn:disabled {
+        background: #c7d1f7;
+        cursor: not-allowed;
+      }
+      #setup-error {
+        color: #b91c1c;
+        margin-bottom: 8px;
+        font-weight: bold;
+      }
+      .bowl-count-label {
+        margin-top: 10px;
+        font-size: 1.1em;
+        color: #6366f1;
+        font-weight: bold;
+        letter-spacing: 1px;
+      }
+    </style>
   </head>
   <body>
-    hi
-    <script src="/dist/index.js"></script>
+    <div id="main-container">
+      <!-- Setup Section (hidden by default, password protected) -->
+      <section id="setup-section">
+        <h2>Setup: Prizes & Participants</h2>
+        <div id="setup-error"></div>
+        <div class="setup-list" id="prize-setup-list"></div>
+        <div class="setup-list" id="participant-setup-list"></div>
+        <button class="setup-btn" id="save-setup-btn">Save & Start Game</button>
+        <button class="setup-btn" id="reset-all-btn">Reset All</button>
+      </section>
+      <!-- Game Section (default) -->
+      <section id="game-section">
+        <div
+          style="
+            position: absolute;
+            top: 32px;
+            right: 32px;
+            z-index: 20;
+            min-width: 180px;
+            text-align: right;
+          "
+        >
+          <span
+            id="current-participant"
+            style="font-size: 1.1em; font-weight: bold; color: #6366f1"
+          ></span>
+        </div>
+        <div id="wheel-container">
+          <canvas id="wheel-canvas" width="420" height="420"></canvas>
+          <button id="spin-btn">Spin</button>
+        </div>
+        <div id="bowl">
+          <div style="font-weight: bold; margin-top: 8px">點我抽下一位</div>
+          <div class="bowl-count-label" id="bowl-count-label">剩餘參與者:0</div>
+        </div>
+        <div style="width: 100%; max-width: 700px">
+          <div
+            id="log-container"
+            style="max-height: 200px; overflow: auto; position: relative"
+          >
+            <table id="log-table">
+              <thead>
+                <tr>
+                  <th>Spin</th>
+                  <th>Participant</th>
+                  <th>Prize</th>
+                </tr>
+              </thead>
+              <tbody id="log-body"></tbody>
+            </table>
+          </div>
+          <button class="action-btn" id="reset-spins-btn">Reset Spins</button>
+        </div>
+      </section>
+      <button
+        class="action-btn"
+        id="admin-btn"
+        style="position: fixed; bottom: 32px; left: 32px; z-index: 30"
+      >
+        Admin
+      </button>
+    </div>
+    <script src="dist/index.js"></script>
   </body>
 </html>
