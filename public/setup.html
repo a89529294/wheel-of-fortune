@@ -63,9 +63,10 @@
         position: absolute;
         inset: 0;
       }
-      main section {
+      .container > section {
         margin-bottom: 2rem;
         flex-grow: 1;
+        flex-basis: 0;
         display: flex;
         flex-direction: column;
       }
@@ -234,21 +235,20 @@
   </head>
   <body>
     <script>
-      // Admin authentication on direct access
-      // const ADMIN_PASSWORD = "iamadmin";
-      // if (!sessionStorage.getItem("admin-authenticated")) {
-      //   const input = window.prompt("請輸入管理員密碼:");
-      //   if (input !== ADMIN_PASSWORD) {
-      //     alert("密碼錯誤，將返回遊戲頁面。");
-      //     window.location.href = "game.html";
-      //   } else {
-      //     sessionStorage.setItem("admin-authenticated", "1");
-      //   }
-      // }
+      const ADMIN_PASSWORD = "iamadmin";
+      if (!sessionStorage.getItem("admin-authenticated")) {
+        const input = window.prompt("請輸入管理員密碼:");
+        if (input !== ADMIN_PASSWORD) {
+          alert("密碼錯誤，將返回遊戲頁面。");
+          window.location.href = "game.html";
+        } else {
+          sessionStorage.setItem("admin-authenticated", "1");
+        }
+      }
 
-      // window.addEventListener("beforeunload", (e) => {
-      //   sessionStorage.removeItem("admin-authenticated");
-      // });
+      window.addEventListener("beforeunload", (e) => {
+        sessionStorage.removeItem("admin-authenticated");
+      });
     </script>
 
     <nav class="nav">
@@ -289,7 +289,7 @@
         </section>
 
         <section class="participants-section">
-          <h2>參與者設定</h2>
+          <h2 style="padding-bottom: 1rem">參與者設定</h2>
           <div id="participants-table-wrapper">
             <div id="participants-table-inner-wrapper">
               <table id="participants-table">
@@ -312,9 +312,13 @@
           </button>
         </section>
 
-        <div class="reset-controls">
-          <button id="reset-all-btn" class="danger-btn">重置所有</button>
-        </div>
+        <button
+          style="position: absolute; bottom: 1rem; right: 1rem"
+          id="reset-all-btn"
+          class="danger-btn"
+        >
+          重置所有
+        </button>
       </main>
     </div>
 
@@ -326,7 +330,10 @@
           <label>名稱: <input type="text" id="prize-name" required /></label>
           <label
             >初始機率:
-            <span id="prize-probability-warning" style="margin-left: 0.5em;"></span>
+            <span
+              id="prize-probability-warning"
+              style="margin-left: 0.5em"
+            ></span>
             <input type="number" id="prize-probability" min="1" required
           /></label>
           <label

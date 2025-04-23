@@ -281,10 +281,8 @@ function renderSetupPage() {
 }
 
 function main() {
-  // (document.getElementById("reset-all-btn") as HTMLButtonElement).onclick =
-  //   handleResetAll;
-  (document.getElementById("reset-spins-btn") as HTMLButtonElement).onclick =
-    handleResetSpins;
+  // (document.getElementById("reset-all-btn") as HTMLButtonElement).onclick = handleResetAll;
+  (document.getElementById("reset-spins-btn") as HTMLButtonElement).onclick = handleResetSpins;
   renderGamePage();
 }
 

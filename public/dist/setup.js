@@ -14,6 +14,9 @@
       return null;
     }
   }
+  function clearState() {
+    localStorage.removeItem(STORAGE_KEY);
+  }
 
   // src/utils.ts
   function getTotalInitialProbability(prizes) {
@@ -355,6 +358,16 @@
     document.querySelectorAll("#cancel-participant-btn").forEach((btn) => btn.addEventListener("click", hideParticipantModal));
     document.getElementById("overlay")?.addEventListener("click", hideParticipantModal);
   }
+  function handleResetAll() {
+    if (confirm(
+      "\u78BA\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u8CC7\u6599\u55CE\uFF1F\u9019\u5C07\u6703\u6E05\u9664\u6240\u6709\u734E\u9805\u3001\u53C3\u8207\u8005\u53CA\u7D00\u9304\u3002"
+    )) {
+      clearState();
+      renderPrizeTable();
+      renderParticipantsTable();
+      updateCurrentTotalProbability(0);
+    }
+  }
   document.addEventListener("DOMContentLoaded", () => {
     renderPrizeTable();
     const state = getAppState();
@@ -367,5 +380,6 @@
     document.querySelector("#prizes-table tbody")?.addEventListener("click", handlePrizeTableClick);
     renderParticipantsTable();
     setupParticipantHandlers();
+    document.getElementById("reset-all-btn").onclick = handleResetAll;
   });
 })();

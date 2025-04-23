@@ -2,7 +2,7 @@
 // All UI text is in Traditional Chinese, logic in English
 
 import { Prize, AppState, Participant } from "./types";
-import { STORAGE_KEY, loadState, saveState } from "./storage";
+import { STORAGE_KEY, loadState, saveState, clearState } from "./storage";
 import {
   getTotalInitialProbability,
   updateCurrentTotalProbability,
@@ -405,6 +405,20 @@ function setupParticipantHandlers() {
     ?.addEventListener("click", hideParticipantModal);
 }
 
+// --- Reset All Handler ---
+function handleResetAll() {
+  if (
+    confirm(
+      "確定要重置所有資料嗎？這將會清除所有獎項、參與者及紀錄。"
+    )
+  ) {
+    clearState();
+    renderPrizeTable();
+    renderParticipantsTable();
+    updateCurrentTotalProbability(0);
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   renderPrizeTable();
   // Update the current total probability display on page load
@@ -423,4 +437,6 @@ document.addEventListener("DOMContentLoaded", () => {
     ?.addEventListener("click", handlePrizeTableClick);
   renderParticipantsTable();
   setupParticipantHandlers();
+  (document.getElementById("reset-all-btn") as HTMLButtonElement).onclick =
+    handleResetAll;
 });
