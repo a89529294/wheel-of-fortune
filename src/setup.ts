@@ -3,6 +3,12 @@
 
 import { Prize, AppState, Participant } from "./types";
 import { STORAGE_KEY, loadState, saveState } from "./storage";
+import {
+  getTotalInitialProbability,
+  updateCurrentTotalProbability,
+  canAddPrizeProbability,
+  isPrizeModalReady,
+} from "./utils";
 
 // --- Prize Management ---
 function getAppState(): AppState {
@@ -64,12 +70,30 @@ function showPrizeModal(editIdx?: number) {
   const modal = document.getElementById("prize-modal");
   const form = document.getElementById("prize-form") as HTMLFormElement;
   const nameInput = document.getElementById("prize-name") as HTMLInputElement;
-  const probInput = document.getElementById("prize-probability") as HTMLInputElement;
-  const hitInput = document.getElementById("prize-hitcount") as HTMLInputElement;
+  const probInput = document.getElementById(
+    "prize-probability"
+  ) as HTMLInputElement;
+  const hitInput = document.getElementById(
+    "prize-hitcount"
+  ) as HTMLInputElement;
   const title = document.getElementById("prize-modal-title");
   const overlay = document.getElementById("overlay");
-  if (!modal || !form || !nameInput || !probInput || !hitInput || !title || !overlay) return;
+  if (
+    !modal ||
+    !form ||
+    !nameInput ||
+    !probInput ||
+    !hitInput ||
+    !title ||
+    !overlay
+  )
+    return;
+  // Always disable submit when opening
+  (form.querySelector("button[type='submit']") as HTMLButtonElement).disabled =
+    true;
   const state = getAppState();
+  let editMode = false;
+  let editingIdx = -1;
   if (typeof editIdx === "number") {
     // Edit mode
     const prize = state.prizes[editIdx];
@@ -78,6 +102,8 @@ function showPrizeModal(editIdx?: number) {
     hitInput.value = String(prize.initialHitCount);
     title.textContent = "編輯獎項";
     form.dataset.editIdx = String(editIdx);
+    editMode = true;
+    editingIdx = editIdx;
   } else {
     // Add mode
     nameInput.value = "";
@@ -86,6 +112,48 @@ function showPrizeModal(editIdx?: number) {
     title.textContent = "新增獎項";
     delete form.dataset.editIdx;
   }
+
+  // --- Prize Modal Input Validation ---
+  function updatePrizeModalSubmitState() {
+    const name = nameInput.value;
+    const prob = parseFloat(probInput.value);
+    const hit = parseInt(hitInput.value, 10);
+    // Calculate current total probability, excluding the prize being edited (if edit mode)
+    let prizes = state.prizes;
+    let currentTotal = 0;
+    if (editMode && editingIdx !== -1) {
+      prizes = state.prizes.slice();
+      prizes[editingIdx] = { ...prizes[editingIdx], initialProbability: 0 };
+      currentTotal = getTotalInitialProbability(prizes);
+    } else {
+      currentTotal = getTotalInitialProbability(prizes);
+    }
+    const ready = isPrizeModalReady(name, prob, currentTotal, hit);
+    (
+      form.querySelector("button[type='submit']") as HTMLButtonElement
+    ).disabled = !ready;
+
+    // --- Probability overflow warning ---
+    const warningSpan = document.getElementById("prize-probability-warning");
+    if (warningSpan) {
+      const sum =
+        (isNaN(prob) ? 0 : prob) + (isNaN(currentTotal) ? 0 : currentTotal);
+      if (probInput.value && sum > 100) {
+        warningSpan.textContent = `(當前總機率加上新機率為${sum}%)`;
+        warningSpan.style.color = "red";
+      } else {
+        warningSpan.textContent = "";
+        warningSpan.style.color = "";
+      }
+    }
+  }
+  nameInput.oninput = updatePrizeModalSubmitState;
+  probInput.oninput = updatePrizeModalSubmitState;
+  hitInput.oninput = updatePrizeModalSubmitState;
+
+  // Run once to set initial state
+  updatePrizeModalSubmitState();
+
   modal.classList.remove("hidden");
   overlay.classList.remove("hidden");
 }
@@ -109,6 +177,18 @@ function handleAddPrize(e: Event) {
   }
   const state = getAppState();
   const form = document.getElementById("prize-form") as HTMLFormElement;
+  // If editing, subtract the old value first
+  let prizes = state.prizes.slice();
+  if (form.dataset.editIdx) {
+    const idx = Number(form.dataset.editIdx);
+    prizes[idx] = { ...prizes[idx], initialProbability: 0 };
+  }
+  const canAdd = canAddPrizeProbability(prizes, initialProbability);
+  const newTotal = getTotalInitialProbability(prizes) + initialProbability;
+  if (!canAdd) {
+    alert("Total probability exceeds 100%");
+    return;
+  }
   if (form.dataset.editIdx) {
     // Edit
     const idx = Number(form.dataset.editIdx);
@@ -137,6 +217,7 @@ function handleAddPrize(e: Event) {
   }
   saveState(state);
   renderPrizeTable();
+  updateCurrentTotalProbability(getTotalInitialProbability(state.prizes));
   closePrizeModal();
 }
 
@@ -154,6 +235,7 @@ function handlePrizeTableClick(e: Event) {
     // (prizesState might have keys not in prizes, that's ok)
     saveState(state);
     renderPrizeTable();
+    updateCurrentTotalProbability(getTotalInitialProbability(state.prizes));
   }
 }
 
@@ -180,9 +262,14 @@ function renderParticipantsTable() {
   tbody.innerHTML = "";
   const participants = loadParticipants();
   const state = loadState();
-  const prizeMap = state && state.prizes ? Object.fromEntries(state.prizes.map(p => [p.id, p.name])) : {};
+  const prizeMap =
+    state && state.prizes
+      ? Object.fromEntries(state.prizes.map((p) => [p.id, p.name]))
+      : {};
   participants.forEach((p, idx) => {
-    const prizeName = p.assignedPrizeId ? (prizeMap[p.assignedPrizeId] || p.assignedPrizeId) : "";
+    const prizeName = p.assignedPrizeId
+      ? prizeMap[p.assignedPrizeId] || p.assignedPrizeId
+      : "";
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${p.name}</td>
@@ -197,16 +284,19 @@ function renderParticipantsTable() {
 }
 
 function populatePrizeDropdown(selectedPrizeId?: string) {
-  const prizeInput = document.getElementById("participant-prize") as HTMLSelectElement;
+  const prizeInput = document.getElementById(
+    "participant-prize"
+  ) as HTMLSelectElement;
   if (!prizeInput) return;
   const state = loadState();
   prizeInput.innerHTML = '<option value="">（未指派）</option>';
   if (state && state.prizes) {
-    state.prizes.forEach(prize => {
-      const option = document.createElement('option');
+    state.prizes.forEach((prize) => {
+      const option = document.createElement("option");
       option.value = prize.id;
       option.textContent = prize.name;
-      if (selectedPrizeId && selectedPrizeId === prize.id) option.selected = true;
+      if (selectedPrizeId && selectedPrizeId === prize.id)
+        option.selected = true;
       prizeInput.appendChild(option);
     });
   }
@@ -223,7 +313,8 @@ function showParticipantModal(editIdx?: number) {
   ) as HTMLSelectElement;
   const title = document.getElementById("participant-modal-title");
   const overlay = document.getElementById("overlay");
-  if (!modal || !form || !nameInput || !prizeInput || !title || !overlay) return;
+  if (!modal || !form || !nameInput || !prizeInput || !title || !overlay)
+    return;
   const participants = loadParticipants();
   if (typeof editIdx === "number") {
     // Edit mode
@@ -272,7 +363,7 @@ function handleParticipantFormSubmit(e: Event) {
     participants[idx] = { ...participants[idx], name, assignedPrizeId };
   } else {
     // Add
-    const id = `p_${Date.now()}_${Math.floor(Math.random()*10000)}`;
+    const id = `p_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     participants.push({ id, name, assignedPrizeId });
   }
   saveParticipants(participants);
@@ -309,11 +400,17 @@ function setupParticipantHandlers() {
     .querySelectorAll("#cancel-participant-btn")
     .forEach((btn) => btn.addEventListener("click", hideParticipantModal));
   // Hide participant modal when clicking overlay
-  document.getElementById("overlay")?.addEventListener("click", hideParticipantModal);
+  document
+    .getElementById("overlay")
+    ?.addEventListener("click", hideParticipantModal);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   renderPrizeTable();
+  // Update the current total probability display on page load
+  const state = getAppState();
+  const total = getTotalInitialProbability(state.prizes);
+  updateCurrentTotalProbability(total);
   (document.getElementById("add-prize-btn") as HTMLButtonElement).onclick =
     () => showPrizeModal();
   (document.getElementById("cancel-prize-btn") as HTMLButtonElement).onclick =
@@ -321,7 +418,9 @@ document.addEventListener("DOMContentLoaded", () => {
   (document.getElementById("prize-form") as HTMLFormElement).onsubmit =
     handleAddPrize;
   (document.getElementById("overlay") as HTMLElement).onclick = closePrizeModal;
-  document.querySelector("#prizes-table tbody")?.addEventListener("click", handlePrizeTableClick);
+  document
+    .querySelector("#prizes-table tbody")
+    ?.addEventListener("click", handlePrizeTableClick);
   renderParticipantsTable();
   setupParticipantHandlers();
 });

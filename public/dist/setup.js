@@ -15,6 +15,34 @@
     }
   }
 
+  // src/utils.ts
+  function getTotalInitialProbability(prizes) {
+    return prizes.reduce(
+      (sum, prize) => sum + (Number(prize.initialProbability) || 0),
+      0
+    );
+  }
+  function canAddPrizeProbability(prizes, newProb, target = 100, epsilon = 1e-3) {
+    const total = getTotalInitialProbability(prizes);
+    return total + newProb <= target + epsilon;
+  }
+  function updateCurrentTotalProbability(total) {
+    const el = document.getElementById("current-total-probability");
+    if (el) {
+      el.textContent = `(\u7576\u524D\u7E3D\u6A5F\u7387: ${total}% )`;
+    }
+  }
+  function isPrizeModalReady(name, newInitProb, currentTotalProb, hitCount) {
+    if (typeof name !== "string" || name.trim().length === 0) return false;
+    if (isNaN(newInitProb) || isNaN(currentTotalProb) || newInitProb < 0 || currentTotalProb < 0)
+      return false;
+    if (newInitProb + currentTotalProb > 100) return false;
+    if (Number.isNaN(hitCount) || typeof hitCount !== "number" || hitCount <= 0)
+      return false;
+    console.log(hitCount);
+    return true;
+  }
+
   // src/setup.ts
   function getAppState() {
     const state = loadState();
@@ -61,12 +89,20 @@
     const modal = document.getElementById("prize-modal");
     const form = document.getElementById("prize-form");
     const nameInput = document.getElementById("prize-name");
-    const probInput = document.getElementById("prize-probability");
-    const hitInput = document.getElementById("prize-hitcount");
+    const probInput = document.getElementById(
+      "prize-probability"
+    );
+    const hitInput = document.getElementById(
+      "prize-hitcount"
+    );
     const title = document.getElementById("prize-modal-title");
     const overlay = document.getElementById("overlay");
-    if (!modal || !form || !nameInput || !probInput || !hitInput || !title || !overlay) return;
+    if (!modal || !form || !nameInput || !probInput || !hitInput || !title || !overlay)
+      return;
+    form.querySelector("button[type='submit']").disabled = true;
     const state = getAppState();
+    let editMode = false;
+    let editingIdx = -1;
     if (typeof editIdx === "number") {
       const prize = state.prizes[editIdx];
       nameInput.value = prize.name;
@@ -74,6 +110,8 @@
       hitInput.value = String(prize.initialHitCount);
       title.textContent = "\u7DE8\u8F2F\u734E\u9805";
       form.dataset.editIdx = String(editIdx);
+      editMode = true;
+      editingIdx = editIdx;
     } else {
       nameInput.value = "";
       probInput.value = "";
@@ -81,6 +119,37 @@
       title.textContent = "\u65B0\u589E\u734E\u9805";
       delete form.dataset.editIdx;
     }
+    function updatePrizeModalSubmitState() {
+      const name = nameInput.value;
+      const prob = parseFloat(probInput.value);
+      const hit = parseInt(hitInput.value, 10);
+      let prizes = state.prizes;
+      let currentTotal = 0;
+      if (editMode && editingIdx !== -1) {
+        prizes = state.prizes.slice();
+        prizes[editingIdx] = { ...prizes[editingIdx], initialProbability: 0 };
+        currentTotal = getTotalInitialProbability(prizes);
+      } else {
+        currentTotal = getTotalInitialProbability(prizes);
+      }
+      const ready = isPrizeModalReady(name, prob, currentTotal, hit);
+      form.querySelector("button[type='submit']").disabled = !ready;
+      const warningSpan = document.getElementById("prize-probability-warning");
+      if (warningSpan) {
+        const sum = (isNaN(prob) ? 0 : prob) + (isNaN(currentTotal) ? 0 : currentTotal);
+        if (probInput.value && sum > 100) {
+          warningSpan.textContent = `(\u7576\u524D\u7E3D\u6A5F\u7387\u52A0\u4E0A\u65B0\u6A5F\u7387\u70BA${sum}%)`;
+          warningSpan.style.color = "red";
+        } else {
+          warningSpan.textContent = "";
+          warningSpan.style.color = "";
+        }
+      }
+    }
+    nameInput.oninput = updatePrizeModalSubmitState;
+    probInput.oninput = updatePrizeModalSubmitState;
+    hitInput.oninput = updatePrizeModalSubmitState;
+    updatePrizeModalSubmitState();
     modal.classList.remove("hidden");
     overlay.classList.remove("hidden");
   }
@@ -101,6 +170,17 @@
     }
     const state = getAppState();
     const form = document.getElementById("prize-form");
+    let prizes = state.prizes.slice();
+    if (form.dataset.editIdx) {
+      const idx = Number(form.dataset.editIdx);
+      prizes[idx] = { ...prizes[idx], initialProbability: 0 };
+    }
+    const canAdd = canAddPrizeProbability(prizes, initialProbability);
+    const newTotal = getTotalInitialProbability(prizes) + initialProbability;
+    if (!canAdd) {
+      alert("Total probability exceeds 100%");
+      return;
+    }
     if (form.dataset.editIdx) {
       const idx = Number(form.dataset.editIdx);
       const prize = state.prizes[idx];
@@ -125,6 +205,7 @@
     }
     saveState(state);
     renderPrizeTable();
+    updateCurrentTotalProbability(getTotalInitialProbability(state.prizes));
     closePrizeModal();
   }
   function handlePrizeTableClick(e) {
@@ -138,6 +219,7 @@
       state.prizes.splice(idx, 1);
       saveState(state);
       renderPrizeTable();
+      updateCurrentTotalProbability(getTotalInitialProbability(state.prizes));
     }
   }
   function loadParticipants() {
@@ -175,7 +257,9 @@
     });
   }
   function populatePrizeDropdown(selectedPrizeId) {
-    const prizeInput = document.getElementById("participant-prize");
+    const prizeInput = document.getElementById(
+      "participant-prize"
+    );
     if (!prizeInput) return;
     const state = loadState();
     prizeInput.innerHTML = '<option value="">\uFF08\u672A\u6307\u6D3E\uFF09</option>';
@@ -184,7 +268,8 @@
         const option = document.createElement("option");
         option.value = prize.id;
         option.textContent = prize.name;
-        if (selectedPrizeId && selectedPrizeId === prize.id) option.selected = true;
+        if (selectedPrizeId && selectedPrizeId === prize.id)
+          option.selected = true;
         prizeInput.appendChild(option);
       });
     }
@@ -200,7 +285,8 @@
     );
     const title = document.getElementById("participant-modal-title");
     const overlay = document.getElementById("overlay");
-    if (!modal || !form || !nameInput || !prizeInput || !title || !overlay) return;
+    if (!modal || !form || !nameInput || !prizeInput || !title || !overlay)
+      return;
     const participants = loadParticipants();
     if (typeof editIdx === "number") {
       nameInput.value = participants[editIdx].name;
@@ -271,6 +357,9 @@
   }
   document.addEventListener("DOMContentLoaded", () => {
     renderPrizeTable();
+    const state = getAppState();
+    const total = getTotalInitialProbability(state.prizes);
+    updateCurrentTotalProbability(total);
     document.getElementById("add-prize-btn").onclick = () => showPrizeModal();
     document.getElementById("cancel-prize-btn").onclick = closePrizeModal;
     document.getElementById("prize-form").onsubmit = handleAddPrize;

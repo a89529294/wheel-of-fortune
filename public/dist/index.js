@@ -578,6 +578,29 @@
 
   // src/main.ts
   var import_toastify_js = __toESM(require_toastify());
+
+  // src/utils.ts
+  function getTotalInitialProbability(prizes) {
+    return prizes.reduce(
+      (sum, prize) => sum + (Number(prize.initialProbability) || 0),
+      0
+    );
+  }
+  function isTotalProbabilityValid(prizes, target = 100, epsilon = 1e-3) {
+    const total = getTotalInitialProbability(prizes);
+    return Math.abs(total - target) < epsilon;
+  }
+  function checkGameReady(prizes, participants) {
+    const probOk = isTotalProbabilityValid(prizes);
+    const hasParticipants = participants.length > 0;
+    return {
+      ready: probOk && hasParticipants,
+      probOk,
+      hasParticipants
+    };
+  }
+
+  // src/main.ts
   function createInitialState() {
     const prizesState = {};
     return {
@@ -615,6 +638,40 @@
     if (!state) {
       state = createInitialState();
       saveState(state);
+    }
+    const statusMsgId = "game-status-msg";
+    let statusMsgDiv = document.getElementById(statusMsgId);
+    if (!statusMsgDiv) {
+      statusMsgDiv = document.createElement("div");
+      statusMsgDiv.id = statusMsgId;
+      statusMsgDiv.style.position = "absolute";
+      statusMsgDiv.style.top = "12px";
+      statusMsgDiv.style.left = "16px";
+      statusMsgDiv.style.zIndex = "100";
+      statusMsgDiv.style.fontWeight = "bold";
+      statusMsgDiv.style.fontSize = "18px";
+      document.body.appendChild(statusMsgDiv);
+    }
+    const { probOk, hasParticipants } = checkGameReady(state.prizes, state.participants);
+    let msg = [];
+    if (!probOk) msg.push("\u7E3D\u6A5F\u7387\u4E0D\u6EFF100");
+    if (!hasParticipants) msg.push("\u7E3D\u4EBA\u6578\u5C11\u65BC1");
+    if (msg.length > 0) {
+      statusMsgDiv.textContent = msg.join(", ");
+      statusMsgDiv.style.color = "#dc2626";
+      statusMsgDiv.style.display = "block";
+      const bowlDiv = document.getElementById("bowl");
+      if (bowlDiv) {
+        bowlDiv.style.pointerEvents = "none";
+        bowlDiv.style.opacity = "0.6";
+      }
+    } else {
+      statusMsgDiv.style.display = "none";
+      const bowlDiv = document.getElementById("bowl");
+      if (bowlDiv) {
+        bowlDiv.style.pointerEvents = "auto";
+        bowlDiv.style.opacity = "1";
+      }
     }
     renderCurrentParticipant(state);
     if (state.pendingSpin) {

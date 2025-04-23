@@ -19,6 +19,7 @@ import {
   renderCurrentParticipant,
 } from "./ui";
 import Toastify from "toastify-js";
+import { checkGameReady } from "./utils";
 
 function createPrepopulatedState(): AppState {
   const prizesState: { [id: string]: number } = {};
@@ -91,6 +92,45 @@ function renderGamePage() {
     state = createInitialState();
     saveState(state);
   }
+
+  // --- Game readiness check and UI message ---
+  const statusMsgId = "game-status-msg";
+  let statusMsgDiv = document.getElementById(statusMsgId);
+  if (!statusMsgDiv) {
+    statusMsgDiv = document.createElement("div");
+    statusMsgDiv.id = statusMsgId;
+    statusMsgDiv.style.position = "absolute";
+    statusMsgDiv.style.top = "12px";
+    statusMsgDiv.style.left = "16px";
+    statusMsgDiv.style.zIndex = "100";
+    statusMsgDiv.style.fontWeight = "bold";
+    statusMsgDiv.style.fontSize = "18px";
+    document.body.appendChild(statusMsgDiv);
+  }
+  const { probOk, hasParticipants } = checkGameReady(state.prizes, state.participants);
+  let msg = [];
+  if (!probOk) msg.push("總機率不滿100");
+  if (!hasParticipants) msg.push("總人數少於1");
+  if (msg.length > 0) {
+    statusMsgDiv.textContent = msg.join(", ");
+    statusMsgDiv.style.color = "#dc2626";
+    statusMsgDiv.style.display = "block";
+    // Disable bowl
+    const bowlDiv = document.getElementById("bowl");
+    if (bowlDiv) {
+      bowlDiv.style.pointerEvents = "none";
+      bowlDiv.style.opacity = "0.6";
+    }
+  } else {
+    statusMsgDiv.style.display = "none";
+    // Enable bowl
+    const bowlDiv = document.getElementById("bowl");
+    if (bowlDiv) {
+      bowlDiv.style.pointerEvents = "auto";
+      bowlDiv.style.opacity = "1";
+    }
+  }
+
   renderCurrentParticipant(state);
   if (state.pendingSpin) {
     const prize = state.prizes.find((p) => p.id === state.pendingSpin!.prizeId);

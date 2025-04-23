@@ -70,8 +70,11 @@
         flex-direction: column;
       }
       h2 {
-        margin-top: 0;
+        margin: 0;
         color: #3182ce;
+      }
+      h3 {
+        margin: 0;
       }
       #prizes-table-wrapper,
       #participants-table-wrapper {
@@ -140,11 +143,11 @@
       .danger-btn:hover {
         background: #c53030;
       }
-      .reset-controls {
-        position: absolute;
-        right: 8px;
-        bottom: 8px;
-        z-index: 10;
+      .action-btn:disabled,
+      .secondary-btn:disabled,
+      .danger-btn:disabled .reset-controls:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
       /* Modal styles */
       .modal {
@@ -254,7 +257,17 @@
     <div class="container-wrapper">
       <main class="container">
         <section class="prizes-section">
-          <h2>獎項設定</h2>
+          <div
+            style="
+              display: flex;
+              gap: 1rem;
+              align-items: center;
+              padding-bottom: 1rem;
+            "
+          >
+            <h2>獎項設定</h2>
+            <h3 id="current-total-probability">(當前總機率)</h3>
+          </div>
           <div id="prizes-table-wrapper">
             <div id="prizes-table-inner-wrapper">
               <table id="prizes-table">
@@ -313,6 +326,7 @@
           <label>名稱: <input type="text" id="prize-name" required /></label>
           <label
             >初始機率:
+            <span id="prize-probability-warning" style="margin-left: 0.5em;"></span>
             <input type="number" id="prize-probability" min="1" required
           /></label>
           <label
@@ -320,7 +334,7 @@
             <input type="number" id="prize-hitcount" min="1" required
           /></label>
           <div class="modal-actions">
-            <button type="submit" class="action-btn">儲存</button>
+            <button type="submit" class="action-btn" disabled>儲存</button>
             <button type="button" id="cancel-prize-btn" class="secondary-btn">
               取消
             </button>
