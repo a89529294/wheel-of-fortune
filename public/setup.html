@@ -239,8 +239,8 @@
       if (!sessionStorage.getItem("admin-authenticated")) {
         const input = window.prompt("請輸入管理員密碼:");
         if (input !== ADMIN_PASSWORD) {
-          alert("密碼錯誤，將返回遊戲頁面。");
-          window.location.href = "game.html";
+          alert("密碼錯誤，將返回前一頁面。");
+          history.back();
         } else {
           sessionStorage.setItem("admin-authenticated", "1");
         }
